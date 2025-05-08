@@ -6,17 +6,17 @@
 #include <math.h>
 #include "drink.h"
 
-/* Siguran unos stringa kroz fgets */
+
 void sigurni_input(char *buffer, size_t velicina) {
     if (fgets(buffer, (int)velicina, stdin) != NULL) {
-        buffer[strcspn(buffer, "\n")] = '\0'; // ukloni znak novog reda
+        buffer[strcspn(buffer, "\n")] = '\0'; 
     } else {
         clearerr(stdin);
         buffer[0] = '\0';
     }
 }
 
-/* Funkcija za unos korisnièkog izbora izbornika */
+
 int meni_izbor(void) {
     char buffer[16];
     int izbor = 0;
@@ -25,7 +25,7 @@ int meni_izbor(void) {
     return izbor;
 }
 
-/* Funkcija koja zamjenjuje zarez sa toèkom u stringu (za decimalni separator) */
+
 void replace_comma_with_dot(char *str) {
     for (; *str; str++) {
         if (*str == ',') {
@@ -121,7 +121,6 @@ void obrisi_pice(Pice **pica, int *broj) {
                 Pice *temp = realloc(*pica, (*broj - 1) * sizeof(Pice));
                 if (temp == NULL) {
                     perror("Greska kod realokacije memorije prilikom brisanja");
-                    // memoriju ne oslobaðamo ovdje da ne bismo izgubili pokazivaè
                     return;
                 }
                 *pica = temp;
@@ -236,15 +235,15 @@ void sortiraj_pica(Pice * const pica, int broj, int kriterij) {
         return;
     }
     switch (kriterij) {
-        case 1: // po imenu
+        case 1: 
             qsort(pica, broj, sizeof(Pice), usporedi_po_imenu);
             printf("Pica su uspjesno sortirana po imenu.\n");
             break;
-        case 2: // po cijeni
+        case 2: 
             qsort(pica, broj, sizeof(Pice), usporedi_po_cijeni);
             printf("Pica su uspjesno sortirana po cijeni.\n");
             break;
-        case 3: // po kolicini
+        case 3: 
             qsort(pica, broj, sizeof(Pice), usporedi_po_kolicini);
             printf("Pica su uspjesno sortirana po kolicini.\n");
             break;
@@ -268,7 +267,7 @@ void pretrazi_pica(const Pice * const pica, int broj) {
     int pronadeno = 0;
 
     switch (kriterij) {
-        case 1: // po imenu
+        case 1: 
             printf("Unesite naziv pica za pretragu: ");
             sigurni_input(naziv_trazi, sizeof(naziv_trazi));
             for (int i = 0; i < broj; i++) {
@@ -280,7 +279,7 @@ void pretrazi_pica(const Pice * const pica, int broj) {
                 }
             }
             break;
-        case 2: // po cijeni
+        case 2: 
             printf("Unesite cijenu za pretragu: ");
             sigurni_input(buffer, sizeof(buffer));
             replace_comma_with_dot(buffer);
@@ -294,7 +293,7 @@ void pretrazi_pica(const Pice * const pica, int broj) {
                 }
             }
             break;
-        case 3: // po kolicini
+        case 3: 
             printf("Unesite kolicinu za pretragu: ");
             sigurni_input(buffer, sizeof(buffer));
             replace_comma_with_dot(buffer);
@@ -318,7 +317,6 @@ void pretrazi_pica(const Pice * const pica, int broj) {
     }
 }
 
-/* Potvrda korisnièke akcije */
 int potvrda_za_akciju(const char *poruka) {
     char odgovor[8];
     printf("%s (d/n): ", poruka);
