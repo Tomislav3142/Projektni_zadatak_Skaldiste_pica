@@ -1,0 +1,18 @@
+# depslib dependency file v1.0
+1746714149 source:c:\users\tomislav\desktop\zadatak_skladiste\drink.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<errno.h>
+	<ctype.h>
+	<math.h>
+	"drink.h"
+
+1746714149 c:\users\tomislav\desktop\zadatak_skladiste\drink.h
+
+1746714380 source:c:\users\tomislav\desktop\zadatak_skladiste\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"drink.h"
+
