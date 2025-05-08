@@ -9,7 +9,6 @@ typedef struct {
     double cijena;
 } Pice;
 
-/* Funkcije za unos, ispis, azuriranje, brisanje, spremanje i ucitavanje pica */
 void dodaj_pice(Pice **pica, int *broj);
 void ispisi_pica(const Pice * const pica, int broj);
 void azuriraj_pice(Pice * const pica, int broj);
@@ -19,7 +18,6 @@ void ucitaj_iz_datoteke(Pice **pica, int *broj);
 void sortiraj_pica(Pice * const pica, int broj, int kriterij);
 void pretrazi_pica(const Pice * const pica, int broj);
 
-/* Pomoæne funkcije */
 int potvrda_za_akciju(const char *poruka);
 int meni_izbor(void);
 void sigurni_input(char *buffer, size_t velicina);
