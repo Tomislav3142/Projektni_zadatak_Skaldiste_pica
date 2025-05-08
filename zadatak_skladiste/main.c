@@ -78,10 +78,10 @@ int main(void) {
                     free(pica);
                     pica = NULL;
                     printf("Izlazim...\n");
-                    izbor = 7; // izlaz
+                    izbor = 7;
                 } else {
                     printf("Izlazak otkazan.\n");
-                    izbor = 0; // reset, nastavlja se rad
+                    izbor = 0; 
                 }
                 break;
             default:
