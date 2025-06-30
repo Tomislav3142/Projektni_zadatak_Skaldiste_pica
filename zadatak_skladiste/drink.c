@@ -6,37 +6,63 @@
 #include <math.h>
 #include "drink.h"
 
+/* File utility functions */
+static int provjeri_datoteku(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (file) {
+        fclose(file);
+        return 1;
+    }
+    return 0;
+}
 
-void sigurni_input(char *buffer, size_t velicina) {
-    if (fgets(buffer, (int)velicina, stdin) != NULL) {
-        buffer[strcspn(buffer, "\n")] = '\0'; 
+static long dohvati_velicinu_datoteke(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) return -1;
+
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fclose(file);
+    return size;
+}
+
+/* Input validation utilities */
+static void ocisti_buffer(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void sigurni_input(char* buffer, size_t velicina) {
+    if (fgets(buffer, (int)velicina, stdin)) {
+        buffer[strcspn(buffer, "\n")] = '\0';
     } else {
-        clearerr(stdin);
+        ocisti_buffer();
         buffer[0] = '\0';
     }
 }
 
-
-int meni_izbor(void) {
-    char buffer[16];
-    int izbor = 0;
-    sigurni_input(buffer, sizeof(buffer));
-    izbor = atoi(buffer);
-    return izbor;
-}
-
-
-void replace_comma_with_dot(char *str) {
-    for (; *str; str++) {
-        if (*str == ',') {
-            *str = '.';
-        }
+void to_lowercase(char* str) {
+    for (; *str; ++str) {
+        *str = (char)tolower((unsigned char)*str);
     }
 }
 
-void dodaj_pice(Pice **pica, int *broj) {
-    Pice *temp = realloc(*pica, ((*broj) + 1) * sizeof(Pice));
-    if (temp == NULL) {
+void replace_comma_with_dot(char* str) {
+    for (; *str; ++str) {
+        if (*str == ',') *str = '.';
+    }
+}
+
+int meni_izbor(void) {
+    char buffer[16];
+    sigurni_input(buffer, sizeof(buffer));
+    return atoi(buffer);
+}
+
+/* Drink operations */
+void dodaj_pice(Pice** pica, int* broj) {
+    Pice* temp = realloc(*pica, (*broj + 1) * sizeof(Pice));
+    if (!temp) {
         perror("Greska kod alokacije memorije");
         return;
     }
@@ -44,6 +70,7 @@ void dodaj_pice(Pice **pica, int *broj) {
 
     printf("Unesite naziv pica: ");
     sigurni_input((*pica)[*broj].naziv, NAZIV_MAX_DUZINA);
+    to_lowercase((*pica)[*broj].naziv);
 
     printf("Unesite kolicinu: ");
     char buffer[64];
@@ -60,50 +87,136 @@ void dodaj_pice(Pice **pica, int *broj) {
     printf("Pice uspjesno dodano.\n");
 }
 
-void ispisi_pica(const Pice * const pica, int broj) {
-    if (broj == 0) {
+void ispisi_pica(const Pice* pica, int broj) {
+    if (!broj) {
         printf("Nema dostupnih pica za ispis.\n");
         return;
     }
+
     printf("\nPopis pica:\n");
     for (int i = 0; i < broj; i++) {
         printf("%d. Naziv: %s, Kolicina: %.2lf, Cijena: %.2lf\n",
-               i + 1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
+               i+1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
     }
 }
 
-void azuriraj_pice(Pice * const pica, int broj) {
-    if (broj == 0) {
-        printf("Nema pica za azurirati.\n");
+/* File operations */
+void spremi_u_datoteku(const Pice* pica, int broj) {
+    FILE* file = fopen(DATOTEKA, "a");
+    if (!file) {
+        perror("Ne mogu otvoriti datoteku za spremanje");
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+
+    for (int i = 0; i < broj; i++) {
+        if (fprintf(file, "%s %.2lf %.2lf\n", pica[i].naziv, pica[i].kolicina, pica[i].cijena) < 0) {
+            perror("Greska kod pisanja u datoteku");
+            break;
+        }
+    }
+
+    if (fclose(file) != 0) {
+        perror("Greska kod zatvaranja datoteke");
+    } else {
+        printf("Podaci uspjesno spremljeni u datoteku '%s'.\n", DATOTEKA);
+    }
+}
+
+void ucitaj_iz_datoteke(Pice** pica, int* broj) {
+    if (!provjeri_datoteku(DATOTEKA)) {
+        fprintf(stderr, "Datoteka '%s' ne postoji.\n", DATOTEKA);
+        return;
+    }
+
+    FILE* file = fopen(DATOTEKA, "r");
+    if (!file) {
+        perror("Greska prilikom otvaranja datoteke");
+        return;
+    }
+
+    fseek(file, 0, SEEK_SET);
+
+    Pice temp;
+    int temp_broj = 0;
+    Pice* temp_pica = NULL;
+    int neispravni_unosi = 0;
+
+    while (fscanf(file, "%49s %lf %lf", temp.naziv, &temp.kolicina, &temp.cijena) == 3) {
+        to_lowercase(temp.naziv);
+        Pice* novi_niz = realloc(temp_pica, (temp_broj + 1) * sizeof(Pice));
+        if (!novi_niz) {
+            perror("Greska kod alokacije memorije");
+            free(temp_pica);
+            fclose(file);
+            return;
+        }
+        temp_pica = novi_niz;
+        temp_pica[temp_broj++] = temp;
+    }
+
+    if (!feof(file) && ferror(file)) {
+        perror("Greska prilikom citanja datoteke");
+    }
+
+    if (fclose(file) != 0) {
+        perror("Greska kod zatvaranja datoteke");
+    }
+
+    if (*pica) {
+        free(*pica);
+    }
+    *pica = temp_pica;
+    *broj = temp_broj;
+
+    printf("Ucitano %d pica iz datoteke '%s'.\n", temp_broj, DATOTEKA);
+}
+
+/* Update, delete and search functions */
+void azuriraj_pice(Pice* pica, int broj) {
+    if (!broj) {
+        printf("Nema pica za azuriranje.\n");
         return;
     }
 
     char naziv[NAZIV_MAX_DUZINA];
     printf("Unesite naziv pica za azuriranje: ");
     sigurni_input(naziv, sizeof(naziv));
+    to_lowercase(naziv);
 
     for (int i = 0; i < broj; i++) {
         if (strcmp(pica[i].naziv, naziv) == 0) {
-            printf("Unesite novu kolicinu: ");
+            printf("\nTrenutni podaci:\nNaziv: %s, Kolicina: %.2lf, Cijena: %.2lf\n",
+                  pica[i].naziv, pica[i].kolicina, pica[i].cijena);
+
+            printf("Azuriraj:\n1. Kolicinu\n2. Cijenu\nOdabir: ");
+            int opcija = meni_izbor();
+
             char buffer[64];
-            sigurni_input(buffer, sizeof(buffer));
-            replace_comma_with_dot(buffer);
-            pica[i].kolicina = strtod(buffer, NULL);
-
-            printf("Unesite novu cijenu: ");
-            sigurni_input(buffer, sizeof(buffer));
-            replace_comma_with_dot(buffer);
-            pica[i].cijena = strtod(buffer, NULL);
-
-            printf("Pice je uspjesno azurirano.\n");
+            if (opcija == 1) {
+                printf("Nova kolicina: ");
+                sigurni_input(buffer, sizeof(buffer));
+                replace_comma_with_dot(buffer);
+                pica[i].kolicina = strtod(buffer, NULL);
+                printf("Kolicina azurirana.\n");
+            } else if (opcija == 2) {
+                printf("Nova cijena: ");
+                sigurni_input(buffer, sizeof(buffer));
+                replace_comma_with_dot(buffer);
+                pica[i].cijena = strtod(buffer, NULL);
+                printf("Cijena azurirana.\n");
+            } else {
+                printf("Neispravan odabir.\n");
+            }
             return;
         }
     }
     printf("Pice nije pronadeno!\n");
 }
 
-void obrisi_pice(Pice **pica, int *broj) {
-    if (*broj == 0) {
+void obrisi_pice(Pice** pica, int* broj) {
+    if (!(*broj)) {
         printf("Nema pica za brisanje.\n");
         return;
     }
@@ -111,218 +224,171 @@ void obrisi_pice(Pice **pica, int *broj) {
     char naziv[NAZIV_MAX_DUZINA];
     printf("Unesite naziv pica za brisanje: ");
     sigurni_input(naziv, sizeof(naziv));
+    to_lowercase(naziv);
 
     for (int i = 0; i < *broj; i++) {
         if (strcmp((*pica)[i].naziv, naziv) == 0) {
             for (int j = i; j < *broj - 1; j++) {
                 (*pica)[j] = (*pica)[j + 1];
             }
-            if (*broj - 1 > 0) {
-                Pice *temp = realloc(*pica, (*broj - 1) * sizeof(Pice));
-                if (temp == NULL) {
-                    perror("Greska kod realokacije memorije prilikom brisanja");
-                    return;
-                }
-                *pica = temp;
-            } else {
-                free(*pica);
-                *pica = NULL;
+
+            Pice* temp = (*broj > 1) ? realloc(*pica, (*broj - 1) * sizeof(Pice)) : NULL;
+            if (*broj > 1 && !temp) {
+                perror("Greska kod smanjivanja memorije");
+                return;
             }
+            *pica = (*broj > 1) ? temp : NULL;
             (*broj)--;
-            printf("Pice je uspjesno obrisano.\n");
+            printf("Pice uspjesno obrisano.\n");
             return;
         }
     }
     printf("Pice nije pronadeno!\n");
 }
 
-void spremi_u_datoteku(const Pice * const pica, int broj) {
-    FILE *file = fopen("pica.txt", "w");
-    if (file == NULL) {
-        perror("Ne mogu otvoriti datoteku za spremanje");
-        return;
-    }
-    for (int i = 0; i < broj; i++) {
-        fprintf(file, "%s %.2lf %.2lf\n", pica[i].naziv, pica[i].kolicina, pica[i].cijena);
-    }
-    if (fclose(file) != 0) {
-        perror("Greska kod zatvaranja datoteke");
-        return;
-    }
-    printf("Podaci su uspjesno spremljeni u datoteku 'pica.txt'.\n");
+/* Sorting functions */
+static int usporedi_po_imenu(const void* a, const void* b) {
+    return strcmp(((const Pice*)a)->naziv, ((const Pice*)b)->naziv);
 }
 
-void ucitaj_iz_datoteke(Pice **pica, int *broj) {
-    FILE *file = fopen("pica.txt", "r");
-    if (file == NULL) {
-        if (errno == ENOENT) {
-            fprintf(stderr, "Datoteka 'pica.txt' ne postoji. Pocetni podaci nisu ucitani.\n");
-        } else {
-            perror("Greska prilikom otvaranja datoteke za ucitavanje");
-        }
-        return;
-    }
-
-    Pice temp;
-    int temp_broj = 0;
-    Pice *temp_pica = NULL;
-    int neispravni_unosi = 0;
-
-    while (1) {
-        int rezultat = fscanf(file, "%49s %lf %lf", temp.naziv, &temp.kolicina, &temp.cijena);
-        if (rezultat == EOF) break;
-        if (rezultat != 3) {
-            fprintf(stderr, "Nepravilan format u datoteci 'pica.txt'. Preskacem ovu liniju.\n");
-            while (fgetc(file) != '\n' && !feof(file));
-            neispravni_unosi++;
-            continue;
-        }
-        Pice *novi_niz = realloc(temp_pica, (temp_broj + 1) * sizeof(Pice));
-        if (novi_niz == NULL) {
-            perror("Greska kod realokacije memorije kod ucitavanja datoteke");
-            free(temp_pica);
-            fclose(file);
-            return;
-        }
-        temp_pica = novi_niz;
-        temp_pica[temp_broj] = temp;
-        temp_broj++;
-    }
-
-    fclose(file);
-
-    if (*pica != NULL) {
-        free(*pica);
-        *pica = NULL;
-        *broj = 0;
-    }
-
-    *pica = temp_pica;
-    *broj = temp_broj;
-
-    if (neispravni_unosi > 0) {
-        fprintf(stderr, "Ucitano je %d ispravnih pica, ali %d neispravnih unosa je preskoceno.\n", temp_broj, neispravni_unosi);
-    } else {
-        printf("Podaci su uspjesno ucitani iz datoteke 'pica.txt'.\n");
-    }
+static int usporedi_po_cijeni_rastuce(const void* a, const void* b) {
+    double diff = ((const Pice*)a)->cijena - ((const Pice*)b)->cijena;
+    return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
 }
 
-int usporedi_po_imenu(const void *a, const void *b) {
-    const Pice *pa = (const Pice*)a;
-    const Pice *pb = (const Pice*)b;
-    return strcmp(pa->naziv, pb->naziv);
+static int usporedi_po_cijeni_opadajuce(const void* a, const void* b) {
+    return -usporedi_po_cijeni_rastuce(a, b);
 }
 
-int usporedi_po_cijeni(const void *a, const void *b) {
-    const Pice *pa = (const Pice*)a;
-    const Pice *pb = (const Pice*)b;
-    if (pa->cijena < pb->cijena) return -1;
-    if (pa->cijena > pb->cijena) return 1;
-    return 0;
+static int usporedi_po_kolicini_rastuce(const void* a, const void* b) {
+    double diff = ((const Pice*)a)->kolicina - ((const Pice*)b)->kolicina;
+    return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
 }
 
-int usporedi_po_kolicini(const void *a, const void *b) {
-    const Pice *pa = (const Pice*)a;
-    const Pice *pb = (const Pice*)b;
-    if (pa->kolicina < pb->kolicina) return -1;
-    if (pa->kolicina > pb->kolicina) return 1;
-    return 0;
+static int usporedi_po_kolicini_opadajuce(const void* a, const void* b) {
+    return -usporedi_po_kolicini_rastuce(a, b);
 }
 
-void sortiraj_pica(Pice * const pica, int broj, int kriterij) {
+void sortiraj_pica(Pice* pica, int broj, int kriterij) {
     if (broj <= 1) {
         printf("Nema dovoljno pica za sortiranje.\n");
         return;
     }
+
+    int nacin = 1;
+    if (kriterij == 2 || kriterij == 3) {
+        printf("Nacin sortiranja:\n1. Rastuce\n2. Opadajuce\nOdabir: ");
+        nacin = meni_izbor();
+        if (nacin != 1 && nacin != 2) {
+            printf("Neispravan odabir. Koristim rastuci redoslijed.\n");
+            nacin = 1;
+        }
+    }
+
     switch (kriterij) {
-        case 1: 
+        case 1:
             qsort(pica, broj, sizeof(Pice), usporedi_po_imenu);
-            printf("Pica su uspjesno sortirana po imenu.\n");
             break;
-        case 2: 
-            qsort(pica, broj, sizeof(Pice), usporedi_po_cijeni);
-            printf("Pica su uspjesno sortirana po cijeni.\n");
+        case 2:
+            qsort(pica, broj, sizeof(Pice),
+                 (nacin == 1) ? usporedi_po_cijeni_rastuce : usporedi_po_cijeni_opadajuce);
             break;
-        case 3: 
-            qsort(pica, broj, sizeof(Pice), usporedi_po_kolicini);
-            printf("Pica su uspjesno sortirana po kolicini.\n");
+        case 3:
+            qsort(pica, broj, sizeof(Pice),
+                 (nacin == 1) ? usporedi_po_kolicini_rastuce : usporedi_po_kolicini_opadajuce);
             break;
         default:
             printf("Neispravan kriterij sortiranja!\n");
-            break;
+            return;
     }
+    printf("Pica uspjesno sortirana.\n");
 }
 
-void pretrazi_pica(const Pice * const pica, int broj) {
-    if (broj == 0) {
-        printf("Nema pica za pretrazivanje.\n");
+/* Search function */
+void pretrazi_pica(const Pice* pica, int broj) {
+    if (!broj) {
+        printf("Nema pica za pretragu.\n");
         return;
     }
-    printf("Pretrazivanje pica po:\n1. Imenu\n2. Cijeni\n3. Kolicini\nUnesite izbor: ");
+
+    printf("Pretraga po:\n1. Imenu\n2. Cijeni\n3. Kolicini\nOdabir: ");
     int kriterij = meni_izbor();
 
-    char naziv_trazi[NAZIV_MAX_DUZINA];
+    char naziv[NAZIV_MAX_DUZINA];
     char buffer[64];
-    double broj_trazi, epsilon = 0.01;
+    double vrijednost;
     int pronadeno = 0;
+    const double EPSILON = 0.001;
 
     switch (kriterij) {
-        case 1: 
-            printf("Unesite naziv pica za pretragu: ");
-            sigurni_input(naziv_trazi, sizeof(naziv_trazi));
+        case 1:
+            printf("Unesite naziv: ");
+            sigurni_input(naziv, sizeof(naziv));
+            to_lowercase(naziv);
             for (int i = 0; i < broj; i++) {
-                if (strcmp(pica[i].naziv, naziv_trazi) == 0) {
-                    if (!pronadeno) printf("Rezultati pretrage:\n");
-                    printf("%d. Naziv: %s, Kolicina: %.2lf, Cijena: %.2lf\n",
-                           i + 1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
+                if (strstr(pica[i].naziv, naziv)) {
+                    printf("%d. %s, Kolicina: %.2lf, Cijena: %.2lf\n",
+                          i+1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
                     pronadeno++;
                 }
             }
             break;
-        case 2: 
-            printf("Unesite cijenu za pretragu: ");
+
+        case 2:
+            printf("Unesite cijenu: ");
             sigurni_input(buffer, sizeof(buffer));
             replace_comma_with_dot(buffer);
-            broj_trazi = strtod(buffer, NULL);
+            vrijednost = strtod(buffer, NULL);
             for (int i = 0; i < broj; i++) {
-                if (fabs(pica[i].cijena - broj_trazi) < epsilon) {
-                    if (!pronadeno) printf("Rezultati pretrage:\n");
-                    printf("%d. Naziv: %s, Kolicina: %.2lf, Cijena: %.2lf\n",
-                           i + 1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
+                if (fabs(pica[i].cijena - vrijednost) < EPSILON) {
+                    printf("%d. %s, Kolicina: %.2lf, Cijena: %.2lf\n",
+                          i+1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
                     pronadeno++;
                 }
             }
             break;
-        case 3: 
-            printf("Unesite kolicinu za pretragu: ");
+
+        case 3:
+            printf("Unesite kolicinu: ");
             sigurni_input(buffer, sizeof(buffer));
             replace_comma_with_dot(buffer);
-            broj_trazi = strtod(buffer, NULL);
+            vrijednost = strtod(buffer, NULL);
             for (int i = 0; i < broj; i++) {
-                if (fabs(pica[i].kolicina - broj_trazi) < epsilon) {
-                    if (!pronadeno) printf("Rezultati pretrage:\n");
-                    printf("%d. Naziv: %s, Kolicina: %.2lf, Cijena: %.2lf\n",
-                           i + 1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
+                if (fabs(pica[i].kolicina - vrijednost) < EPSILON) {
+                    printf("%d. %s, Kolicina: %.2lf, Cijena: %.2lf\n",
+                          i+1, pica[i].naziv, pica[i].kolicina, pica[i].cijena);
                     pronadeno++;
                 }
             }
             break;
+
         default:
-            printf("Neispravan izbor za pretragu!\n");
+            printf("Neispravan izbor pretrage!\n");
             return;
     }
 
     if (!pronadeno) {
-        printf("Nema rezultata pretrage za zadani kriterij.\n");
+        printf("Nema rezultata pretrage.\n");
     }
 }
 
-int potvrda_za_akciju(const char *poruka) {
+/* Confirmation dialog */
+int potvrda_za_akciju(const char* poruka) {
     char odgovor[8];
     printf("%s (d/n): ", poruka);
     sigurni_input(odgovor, sizeof(odgovor));
-    if (tolower((unsigned char)odgovor[0]) == 'd') {
-        return 1;
+    return tolower(odgovor[0]) == 'd';
+}
+
+/* File management */
+void obrisi_datoteku(void) {
+    if (potvrda_za_akciju("Jeste li sigurni da zelite obrisati datoteku?")) {
+        if (remove(DATOTEKA) == 0) {
+            printf("Datoteka '%s' obrisana.\n", DATOTEKA);
+        } else {
+            perror("Greska prilikom brisanja");
+        }
+    } else {
+        printf("Brisanje otkazano.\n");
     }
-    return 0;
 }

@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1746714149 source:c:\users\tomislav\desktop\zadatak_skladiste\drink.c
+1751282451 source:c:\users\tomislav\desktop\zadatak_skladiste\drink.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
@@ -8,9 +8,9 @@
 	<math.h>
 	"drink.h"
 
-1746714149 c:\users\tomislav\desktop\zadatak_skladiste\drink.h
+1751282145 c:\users\tomislav\desktop\zadatak_skladiste\drink.h
 
-1746714380 source:c:\users\tomislav\desktop\zadatak_skladiste\main.c
+1751282145 source:c:\users\tomislav\desktop\zadatak_skladiste\main.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>

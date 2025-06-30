@@ -25,6 +25,7 @@ int main(void) {
         printf("5. Sortiraj pica\n");
         printf("6. Pretrazi pica\n");
         printf("7. Spremi i izadi\n");
+        printf("8. Obrisi datoteku sa diska\n");
         izbor = meni_izbor();
 
         switch (izbor) {
@@ -81,13 +82,16 @@ int main(void) {
                     izbor = 7;
                 } else {
                     printf("Izlazak otkazan.\n");
-                    izbor = 0; 
+                    izbor = 0;
                 }
+                break;
+            case 8:
+                obrisi_datoteku();
                 break;
             default:
                 printf("Odabrali ste nepostojecu opciju! Pokusajte ponovo.\n");
         }
     } while (izbor != 7);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
